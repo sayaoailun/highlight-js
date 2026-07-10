@@ -64,22 +64,45 @@
         }
 
         highlight(config) {
-            // 只获取元素本身的直接文本内容（不包含子元素）
-            const directText = Array.from(this.element.childNodes)
-                .filter(node => node.nodeType === Node.TEXT_NODE)
-                .map(node => node.textContent)
-                .join('');
+            // 遍历所有子节点，只处理文本节点
+            const childNodes = Array.from(this.element.childNodes);
             
             for (const keyword of TextElement.keywords) {
                 const keywordPattern = new RegExp(keyword.str, 'gi');
-                if (keywordPattern.test(directText)) {
-                    this.shouldHighlight = true;
-                    this.element.style.backgroundColor = keyword.color || config.defaultColor;
-                    this.element.style.color = config.defaultTextColor;
-                    this.element.setAttribute('title', keyword.title);
-                    this.element.dataset.highlighted = 'true';
-                    break;
+                
+                for (let i = 0; i < childNodes.length; i++) {
+                    const node = childNodes[i];
+                    
+                    // 只处理文本节点
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const text = node.textContent;
+                        
+                        if (keywordPattern.test(text)) {
+                            this.shouldHighlight = true;
+                            
+                            // 将匹配的关键字用 <mark> 标签包裹
+                            const highlightedText = text.replace(
+                                keywordPattern,
+                                `<mark style="background-color: ${keyword.color || config.defaultColor}; color: ${config.defaultTextColor};" title="${keyword.title}">$&</mark>`
+                            );
+                            
+                            // 创建临时元素来解析 HTML
+                            const tempElement = document.createElement('span');
+                            tempElement.innerHTML = highlightedText;
+                            
+                            // 替换原文本节点为解析后的节点
+                            node.parentNode.replaceChild(tempElement, node);
+                            
+                            // 更新 childNodes 数组（因为DOM已改变）
+                            childNodes.splice(i, 1, ...Array.from(tempElement.childNodes));
+                            i += tempElement.childNodes.length - 1;
+                        }
+                    }
                 }
+            }
+            
+            if (this.shouldHighlight) {
+                this.element.dataset.highlighted = 'true';
             }
         }
 
