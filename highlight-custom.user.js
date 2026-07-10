@@ -15,6 +15,10 @@
 (function() {
     'use strict';
 
+    function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     const DEFAULT_CONFIG = {
         sites: {
             '.*': [
@@ -68,7 +72,8 @@
             const childNodes = Array.from(this.element.childNodes);
             
             for (const keyword of TextElement.keywords) {
-                const keywordPattern = new RegExp(keyword.str, 'gi');
+                const escapedStr = escapeRegExp(keyword.str);
+                const keywordPattern = new RegExp(escapedStr, 'gi');
                 
                 for (let i = 0; i < childNodes.length; i++) {
                     const node = childNodes[i];
@@ -128,8 +133,6 @@
 
     function highlight() {
         const elements = TextElement.findAll();
-        
-        if (elements.length === highlightedCount) return;
         
         KeywordService.list().then((keywords) => {
             TextElement.setKeywords(keywords);
