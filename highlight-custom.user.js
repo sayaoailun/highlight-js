@@ -68,44 +68,47 @@
         }
 
         highlight(config) {
-            // 遍历所有子节点，只处理文本节点
             const childNodes = Array.from(this.element.childNodes);
             
-            for (const keyword of TextElement.keywords) {
-                const escapedStr = escapeRegExp(keyword.str);
-                const keywordPattern = new RegExp(escapedStr, 'gi');
-                
-                for (let i = 0; i < childNodes.length; i++) {
-                    const node = childNodes[i];
-                    
-                    // 只处理文本节点
-                    if (node.nodeType === Node.TEXT_NODE) {
-                        const text = node.textContent;
-                        
-                        if (keywordPattern.test(text)) {
-                            this.shouldHighlight = true;
-                            
-                            // 将匹配的关键字用 <mark> 标签包裹
-                            const highlightedText = text.replace(
-                                keywordPattern,
-                                `<mark style="background-color: ${keyword.color || config.defaultColor}; color: ${config.defaultTextColor};" title="${keyword.title}">$&</mark>`
-                            );
-                            
-                            // 创建临时元素来解析 HTML
-                            const tempElement = document.createElement('span');
-                            tempElement.innerHTML = highlightedText;
-                            
-                            // 替换原文本节点为解析后的节点
-                            node.parentNode.replaceChild(tempElement, node);
-                            
-                            // 更新 childNodes 数组（因为DOM已改变）
-                            childNodes.splice(i, 1, ...Array.from(tempElement.childNodes));
-                            i += tempElement.childNodes.length - 1;
-                        }
+            if (TextElement.keywords.length === 0) return;
+            
+            const combinedPattern = new RegExp(
+                TextElement.keywords.map(kw => escapeRegExp(kw.str)).join('|'),
+                'gi'
+            );
+
+            for (let i = 0; i < childNodes.length; i++) {
+                const node = childNodes[i];
+
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent;
+
+                    if (combinedPattern.test(text)) {
+                        this.shouldHighlight = true;
+                        combinedPattern.lastIndex = 0;
+
+                        const highlightedText = text.replace(
+                            combinedPattern,
+                            (match) => {
+                                const keyword = TextElement.keywords.find(kw => 
+                                    new RegExp('^' + escapeRegExp(kw.str) + '$', 'i').test(match)
+                                );
+                                if (keyword) {
+                                    return `<mark style="background-color: ${keyword.color || config.defaultColor}; color: ${config.defaultTextColor};" title="${keyword.title}">${match}</mark>`;
+                                }
+                                return match;
+                            }
+                        );
+
+                        const tempElement = document.createElement('span');
+                        tempElement.innerHTML = highlightedText;
+                        node.parentNode.replaceChild(tempElement, node);
+                        childNodes.splice(i, 1, ...Array.from(tempElement.childNodes));
+                        i += tempElement.childNodes.length - 1;
                     }
                 }
             }
-            
+
             if (this.shouldHighlight) {
                 this.element.dataset.highlighted = 'true';
             }
@@ -127,7 +130,7 @@
         }
     }
 
-    TextElement.targetTagNames = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'pre', 'blockquote', 'summary', 'div'];
+    TextElement.targetTagNames = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'pre', 'blockquote', 'summary', 'div', 'span'];
 
     let highlightedCount = 0;
 
